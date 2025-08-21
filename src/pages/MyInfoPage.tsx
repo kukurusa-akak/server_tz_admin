@@ -180,7 +180,7 @@ export function MyInfoPage() {
     return (
         <div className="p-6 sm:p-10 bg-white min-h-full">
             <header className="mb-8">
-                <h2 className="text-3xl font-bold text-slate-800">내 정보 관리</h2>
+                <h2 className="text-2xl font-bold text-slate-800">내 정보 관리</h2>
                 <p className="text-slate-500 mt-2">계정 및 프로필 정보를 관리합니다.</p>
             </header>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">

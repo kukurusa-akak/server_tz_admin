@@ -103,7 +103,7 @@ export function PermissionManagementPage() {
     return (
         <div className="p-6 sm:p-10 min-h-full">
             <header className="mb-8">
-                <h2 className="text-3xl font-bold text-slate-800">권한 관리</h2>
+                <h2 className="text-2xl font-bold text-slate-800">권한 관리</h2>
                 <p className="text-slate-500 mt-2">사용자 역할을 관리하고 지점 관리자에게 지점을 할당합니다.</p>
             </header>
             <div className="bg-white border border-slate-200 rounded-xl">

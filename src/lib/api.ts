@@ -222,6 +222,49 @@ export const uploadImage = (file: File): Promise<{ imageUrl: string }> => {
     });
 };
 
+// --- Brand Experience API ---
+export type BrandExperience = {
+  id: number;
+  branchSlug: string;
+  displayOrder: number;
+  title: string;
+  description: string;
+  imageUrl: string;
+};
+
+export const getBrandExperiences = (branchSlug: string): Promise<BrandExperience[]> =>
+  apiFetch(`${API_BASE_URL}/home/brand-experience/${branchSlug}`);
+
+export const createBrandExperience = (data: Omit<BrandExperience, 'id'>): Promise<BrandExperience> =>
+  apiFetch(`${API_BASE_URL}/home/brand-experience`, { method: 'POST', body: JSON.stringify(data) });
+
+export const updateBrandExperience = (id: number, data: Partial<Omit<BrandExperience, 'id'>>): Promise<BrandExperience> =>
+  apiFetch(`${API_BASE_URL}/home/brand-experience/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteBrandExperience = (id: number): Promise<null> =>
+  apiFetch(`${API_BASE_URL}/home/brand-experience/${id}`, { method: 'DELETE' });
+
+// --- Brand Value API ---
+export type BrandValue = {
+  id: number;
+  branchSlug: string;
+  displayOrder: number;
+  label: string;
+  value: string;
+};
+
+export const getBrandValues = (branchSlug: string): Promise<BrandValue[]> =>
+  apiFetch(`${API_BASE_URL}/brand-value/${branchSlug}`);
+
+export const createBrandValue = (data: Omit<BrandValue, 'id'>): Promise<BrandValue> =>
+  apiFetch(`${API_BASE_URL}/brand-value`, { method: 'POST', body: JSON.stringify(data) });
+
+export const updateBrandValue = (id: number, data: Partial<Omit<BrandValue, 'id'>>): Promise<BrandValue> =>
+  apiFetch(`${API_BASE_URL}/brand-value/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteBrandValue = (id: number): Promise<null> =>
+  apiFetch(`${API_BASE_URL}/brand-value/${id}`, { method: 'DELETE' });
+
 // --- Hero Section API ---
 export const getHeroSections = (branchSlug: string) => apiFetch(`${API_BASE_URL}/hero/sections/${branchSlug}`);
 export const createHeroSection = (data: any) => apiFetch(`${API_BASE_URL}/hero/sections`, { method: 'POST', body: JSON.stringify(data) });
@@ -258,6 +301,7 @@ export type Treatment = {
     searchRankingTitle?: string | null; 
     searchRankingDescription?: string | null; 
     searchRankingImageUrl?: string | null; 
+    treatmentCategoryId?: number | null;
 };
 export const getAllTreatments = (): Promise<Treatment[]> => apiFetch(`${API_BASE_URL}/treatments`);
 export const getTreatmentsByBranch = (branchSlug: string): Promise<Treatment[]> => apiFetch(`${API_BASE_URL}/treatments/${branchSlug}`);
@@ -265,6 +309,99 @@ export const createTreatment = (data: Omit<Treatment, 'id'>) => apiFetch(`${API_
 export const updateTreatment = (id: number, data: Partial<Treatment>) => apiFetch(`${API_BASE_URL}/treatments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteTreatment = (id: number) => apiFetch(`${API_BASE_URL}/treatments/${id}`, { method: 'DELETE' });
 export const updateTreatmentDisplay = (category: string, items: { id: number; title: string; description: string | null; imageUrl: string | null }[]) => apiFetch(`${API_BASE_URL}/treatments/bulk-visibility`, { method: 'POST', body: JSON.stringify({ category, items }) });
+
+// --- Search Ranking API ---
+export type SearchRankingItem = {
+  id: number;
+  displayOrder: number;
+  title: string;
+  description?: string | null;
+  imageUrl: string;
+  linkUrl?: string | null;
+  newImageFile?: File; // For temporary client-side storage
+};
+
+export type SearchRankingGroup = {
+  id: number;
+  branchSlug: string;
+  name: string;
+  displayOrder: number;
+  items: SearchRankingItem[];
+};
+
+export const getSearchRankingGroups = (branchSlug: string): Promise<SearchRankingGroup[]> =>
+  apiFetch(`${API_BASE_URL}/search-ranking/groups/${branchSlug}`);
+
+export const createSearchRankingGroup = (data: Omit<SearchRankingGroup, 'id' | 'items'>): Promise<SearchRankingGroup> =>
+  apiFetch(`${API_BASE_URL}/search-ranking/groups`, { method: 'POST', body: JSON.stringify(data) });
+
+export const updateSearchRankingGroup = (id: number, data: Partial<Omit<SearchRankingGroup, 'id' | 'items'>>): Promise<SearchRankingGroup> =>
+  apiFetch(`${API_BASE_URL}/search-ranking/groups/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteSearchRankingGroup = (id: number): Promise<null> =>
+  apiFetch(`${API_BASE_URL}/search-ranking/groups/${id}`, { method: 'DELETE' });
+
+export const updateSearchRankingGroupItems = (groupId: number, items: { type: 'event' | 'treatment', id: number }[]): Promise<{ message: string }> =>
+  apiFetch(`${API_BASE_URL}/search-ranking/groups/${groupId}/items`, { method: 'POST', body: JSON.stringify({ items }) });
+
+export const updateSearchRankingItem = (itemId: number, data: { title: string; description?: string | null; imageUrl: string; }): Promise<SearchRankingItem> =>
+  apiFetch(`${API_BASE_URL}/search-ranking/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) });
+
+
+// --- New Promotion API ---
+export type NewPromotionItem = {
+  id: number;
+  displayOrder: number;
+  title: string;
+  description?: string | null;
+  imageUrl: string;
+  linkUrl?: string | null;
+  newImageFile?: File; // For temporary client-side storage
+};
+
+export const getNewPromotionItems = (branchSlug: string): Promise<NewPromotionItem[]> =>
+  apiFetch(`${API_BASE_URL}/branches/${branchSlug}/new-promotions`);
+
+export const updateNewPromotionItems = (branchSlug: string, items: Omit<NewPromotionItem, 'id'>[]): Promise<{ message: string }> =>
+  apiFetch(`${API_BASE_URL}/branches/${branchSlug}/new-promotions`, { method: 'PUT', body: JSON.stringify(items) });
+
+
+// --- Signature API ---
+export type SignatureItem = {
+  id: number;
+  displayOrder: number;
+  title: string;
+  description?: string | null;
+  imageUrl: string;
+  linkUrl?: string | null;
+  newImageFile?: File; // For temporary client-side storage
+};
+
+export const getSignatureItems = (branchSlug: string): Promise<SignatureItem[]> =>
+  apiFetch(`${API_BASE_URL}/branches/${branchSlug}/signatures`);
+
+export const updateSignatureItems = (branchSlug: string, items: Omit<SignatureItem, 'id'>[]): Promise<{ message: string }> =>
+  apiFetch(`${API_BASE_URL}/branches/${branchSlug}/signatures`, { method: 'PUT', body: JSON.stringify(items) });
+
+
+// --- Treatment Category API ---
+export type TreatmentCategory = {
+  id: number;
+  name: string;
+  displayOrder: number;
+};
+
+export const getTreatmentCategories = (): Promise<TreatmentCategory[]> =>
+  apiFetch(`${API_BASE_URL}/treatment-categories`);
+
+export const createTreatmentCategory = (data: Omit<TreatmentCategory, 'id'>): Promise<TreatmentCategory> =>
+  apiFetch(`${API_BASE_URL}/treatment-categories`, { method: 'POST', body: JSON.stringify(data) });
+
+export const updateTreatmentCategory = (id: number, data: Omit<TreatmentCategory, 'id'>): Promise<TreatmentCategory> =>
+  apiFetch(`${API_BASE_URL}/treatment-categories/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+
+export const deleteTreatmentCategory = (id: number): Promise<null> =>
+  apiFetch(`${API_BASE_URL}/treatment-categories/${id}`, { method: 'DELETE' });
 
 // --- Sitemap API ---
 export type SitemapEntry = {
@@ -412,3 +549,15 @@ export const getPatientDetails = (id: number): Promise<Patient> =>
 
 export const addConsultationMemo = (patientId: number, content: string, employeeName: string): Promise<ConsultationMemo> =>
     apiFetch(`${API_BASE_URL}/patients/${patientId}/memos`, { method: 'POST', body: JSON.stringify({ content, employeeName }) });
+
+// --- Notice API ---
+export type Notice = {
+  id: number;
+  title: string;
+  content?: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export const getActiveNotices = (): Promise<Notice[]> => apiFetch(`${API_BASE_URL}/notices`);
+

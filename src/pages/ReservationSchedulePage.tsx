@@ -224,7 +224,7 @@ export function ReservationSchedulePage() {
     <>
       <div className="p-10 min-h-full">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">예약 날짜 관리</h1>
+          <h1 className="text-2xl font-bold text-slate-800">예약 날짜 관리</h1>
           <div className="flex items-center">
             <button 
               onClick={() => setIsBulkDialogOpen(true)}

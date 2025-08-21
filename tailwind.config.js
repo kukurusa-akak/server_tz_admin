@@ -15,6 +15,7 @@ module.exports = {
     extend: {
       colors: {
         'theme-primary': '#BB2649',
+        'theme-primary-light': '#F5DDE2',
         'skin-tone': '#FBF5F3',
         'warm-pink': '#F8EAE5',
         beige: '#F5F1ED',

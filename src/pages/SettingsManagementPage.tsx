@@ -47,7 +47,7 @@ export function SettingsManagementPage() {
         <div className="p-6 sm:p-10 min-h-full">
             <header className="mb-8">
                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-3xl font-bold text-slate-800">사이트 설정</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">사이트 설정</h2>
                     <button onClick={handleSave} disabled={isSaving} className="inline-flex items-center gap-2 px-5 py-2.5 bg-theme-primary text-white font-semibold rounded-lg hover:bg-opacity-90 disabled:bg-opacity-50">
                         <Save size={18} /> {isSaving ? '저장 중...' : '변경사항 저장'}
                     </button>

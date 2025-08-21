@@ -87,3 +87,8 @@ This document outlines critical rules and common pitfalls encountered during the
 ### 14. Build & Cache Troubleshooting
 **Problem:** Cryptic build errors persisted even after code was corrected.
 **Rule:** Escalate troubleshooting: 1. Restart server. 2. Restart with `--force`. 3. Delete `node_modules/.vite`. 4. Reinstall `node_modules`.
+
+
+I manage the React server lifecycle. No `npm start`. Code only.
+
+Base all modifications strictly on the current code content, ignoring any prior state or conversation history.

@@ -107,7 +107,7 @@ export function HeroManagementPage() {
         <div className="p-6 sm:p-10 min-h-full">
             <header className="mb-8">
                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-3xl font-bold text-slate-800">Hero Section 관리</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">Hero Section 관리</h2>
                     <button onClick={handleAddClick} className="inline-flex items-center gap-2 px-5 py-2.5 bg-theme-primary text-white font-semibold rounded-lg hover:bg-opacity-90"><PlusCircle size={18} /> 새 섹션 추가</button>
                 </div>
                 <p className="text-slate-500">현재 <span className="font-semibold text-theme-primary">{branchSlug}</span> 지점의 Hero Section을 관리합니다.</p>

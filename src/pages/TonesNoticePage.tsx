@@ -12,7 +12,7 @@ export function TonesNoticePage() {
     <div className="p-10 min-h-full">
       <div className="flex items-center gap-4 mb-8">
         <Megaphone className="w-8 h-8 text-theme-primary" />
-        <h1 className="text-3xl font-bold text-slate-800">톤즈 공지사항</h1>
+        <h1 className="text-2xl font-bold text-slate-800">톤즈 공지사항</h1>
       </div>
       <div className="bg-white rounded-lg border overflow-hidden">
         <table className="w-full">

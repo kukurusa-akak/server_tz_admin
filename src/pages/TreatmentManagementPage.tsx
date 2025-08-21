@@ -1,26 +1,108 @@
-import { useState, useEffect, FormEvent, ChangeEvent, useMemo } from "react";
+import { useState, useEffect, FormEvent, ChangeEvent, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { PlusCircle, Search, UploadCloud } from "lucide-react";
-import { getTreatmentsByBranch, createTreatment, updateTreatment, deleteTreatment, uploadImage, type Treatment } from "../lib/api";
+import { PlusCircle, Search, UploadCloud, Edit, Trash2, Save } from "lucide-react";
+import { 
+    getTreatmentsByBranch, createTreatment, updateTreatment, deleteTreatment, uploadImage, type Treatment,
+    getTreatmentCategories, createTreatmentCategory, updateTreatmentCategory, deleteTreatmentCategory, type TreatmentCategory
+} from "../lib/api";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Textarea } from "@/components/ui/Textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/Select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 
-const TreatmentForm = ({ treatment, onSubmit, onCancel, branchSlug }: { treatment?: Treatment | null; onSubmit: (data: Omit<Treatment, 'id'> | Partial<Treatment>) => void; onCancel: () => void; branchSlug: string; }) => {
-    const [formData, setFormData] = useState({ branchSlug: branchSlug, name: '', category: '', price: 0, description: '', imageUrl: '', });
+// --- Category Management Modal ---
+const CategoryManager = ({ onUpdate }: { onUpdate: () => void }) => {
+    const [categories, setCategories] = useState<TreatmentCategory[]>([]);
+    const [editingCategory, setEditingCategory] = useState<Partial<TreatmentCategory> | null>(null);
+    const [newCategoryName, setNewCategoryName] = useState("");
+
+    const fetchCategories = useCallback(async () => {
+        const data = await getTreatmentCategories();
+        setCategories(data);
+    }, []);
+
+    useEffect(() => {
+        fetchCategories();
+    }, [fetchCategories]);
+
+    const handleSave = async (category: Partial<TreatmentCategory>) => {
+        if (!category.name) return;
+        if (category.id) {
+            await updateTreatmentCategory(category.id, { name: category.name, displayOrder: category.displayOrder || 0 });
+        }
+        setEditingCategory(null);
+        await fetchCategories();
+        onUpdate();
+    };
+
+    const handleCreate = async () => {
+        if (!newCategoryName) return;
+        await createTreatmentCategory({ name: newCategoryName, displayOrder: categories.length });
+        setNewCategoryName("");
+        await fetchCategories();
+        onUpdate();
+    };
+
+    const handleDelete = async (id: number) => {
+        if (window.confirm("정말로 이 카테고리를 삭제하시겠습니까? 해당 카테고리의 시술들은 '미분류'로 변경됩니다.")) {
+            await deleteTreatmentCategory(id);
+            await fetchCategories();
+            onUpdate();
+        }
+    };
+
+    return (
+        <DialogContent>
+            <DialogHeader><DialogTitle>시술 종류 (그룹) 관리</DialogTitle></DialogHeader>
+            <div className="space-y-4 py-4">
+                <div className="flex gap-2">
+                    <Input value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} placeholder="새 그룹명 입력" />
+                    <Button onClick={handleCreate}>추가</Button>
+                </div>
+                <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                    {categories.map(cat => (
+                        <div key={cat.id} className="flex items-center gap-2 p-2 border rounded-md">
+                            {editingCategory?.id === cat.id ? (
+                                <Input value={editingCategory.name || ''} onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })} />
+                            ) : (
+                                <span className="flex-grow">{cat.name}</span>
+                            )}
+                            {editingCategory?.id === cat.id ? (
+                                <Button size="icon" variant="ghost" onClick={() => handleSave(editingCategory!)}><Save className="h-4 w-4" /></Button>
+                            ) : (
+                                <Button size="icon" variant="ghost" onClick={() => setEditingCategory(cat)}><Edit className="h-4 w-4" /></Button>
+                            )}
+                            <Button size="icon" variant="ghost" onClick={() => handleDelete(cat.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </DialogContent>
+    );
+};
+
+
+// --- Treatment Form ---
+const TreatmentForm = ({ treatment, onSubmit, onCancel, branchSlug, categories, onCategoriesUpdate, onDelete }: { treatment?: Treatment | null; onSubmit: (data: any) => void; onCancel: () => void; branchSlug: string; categories: TreatmentCategory[], onCategoriesUpdate: () => void; onDelete: (id: number) => void; }) => {
+    const [formData, setFormData] = useState({ branchSlug, name: '', category: '', price: 0, description: '', imageUrl: '', treatmentCategoryId: null as number | null });
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
     useEffect(() => {
         if (treatment) {
-            setFormData({ branchSlug: treatment.branchSlug, name: treatment.name, category: treatment.category ?? '', price: treatment.price, description: treatment.description ?? '', imageUrl: treatment.imageUrl });
+            setFormData({
+                branchSlug: treatment.branchSlug, name: treatment.name, category: treatment.category ?? '',
+                price: treatment.price, description: treatment.description ?? '', imageUrl: treatment.imageUrl,
+                treatmentCategoryId: treatment.treatmentCategoryId || null
+            });
             setPreviewUrl(treatment.imageUrl);
             setSelectedFile(null);
         } else {
-            setFormData({ branchSlug: branchSlug, name: '', category: '', price: 0, description: '', imageUrl: '' });
+            setFormData({ branchSlug, name: '', category: '', price: 0, description: '', imageUrl: '', treatmentCategoryId: null });
             setPreviewUrl(null);
             setSelectedFile(null);
         }
@@ -37,6 +119,10 @@ const TreatmentForm = ({ treatment, onSubmit, onCancel, branchSlug }: { treatmen
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
         setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseInt(value) || 0 : value }));
+    };
+    
+    const handleCategoryChange = (value: string) => {
+        setFormData(prev => ({ ...prev, treatmentCategoryId: parseInt(value) || null }));
     };
 
     const handleSubmit = async (e: FormEvent) => {
@@ -62,6 +148,21 @@ const TreatmentForm = ({ treatment, onSubmit, onCancel, branchSlug }: { treatmen
                 <div className="col-span-2"><Label>시술명</Label><Input required name="name" value={formData.name} onChange={handleChange} /></div>
                 <div><Label>제품명</Label><Input name="category" value={formData.category ?? ''} onChange={handleChange} placeholder="예: 원더톡스" /></div>
                 <div><Label>가격 (원)</Label><Input required type="number" name="price" value={formData.price} onChange={handleChange} /></div>
+                <div className="col-span-2">
+                    <Label>시술 종류 (그룹)</Label>
+                    <div className="flex items-center gap-2">
+                        <Select value={formData.treatmentCategoryId?.toString()} onValueChange={handleCategoryChange}>
+                            <SelectTrigger><SelectValue placeholder="그룹 선택" /></SelectTrigger>
+                            <SelectContent>
+                                {categories.map(cat => <SelectItem key={cat.id} value={cat.id.toString()}>{cat.name}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Dialog>
+                            <DialogTrigger asChild><Button type="button" variant="outline">관리</Button></DialogTrigger>
+                            <CategoryManager onUpdate={onCategoriesUpdate} />
+                        </Dialog>
+                    </div>
+                </div>
             </div>
             <div className="space-y-2">
                 <Label>대표 이미지</Label>
@@ -83,6 +184,12 @@ const TreatmentForm = ({ treatment, onSubmit, onCancel, branchSlug }: { treatmen
                 <Textarea name="description" value={formData.description ?? ''} onChange={handleChange} rows={4} />
             </div>
             <div className="flex justify-end gap-2 pt-4">
+                {treatment && (
+                    <Button type="button" variant="outline" className="mr-auto text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600" onClick={() => onDelete(treatment.id)} disabled={isUploading}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        삭제
+                    </Button>
+                )}
                 <Button type="button" variant="outline" onClick={onCancel} disabled={isUploading}>취소</Button>
                 <Button type="submit" disabled={isUploading}>{isUploading ? '저장 중...' : (treatment ? '변경사항 저장' : '시술 생성')}</Button>
             </div>
@@ -90,47 +197,110 @@ const TreatmentForm = ({ treatment, onSubmit, onCancel, branchSlug }: { treatmen
     );
 };
 
+// --- Main Component ---
 export function TreatmentManagementPage() {
     const { branchSlug } = useParams<{ branchSlug: string }>();
     const [treatments, setTreatments] = useState<Treatment[]>([]);
+    const [categories, setCategories] = useState<TreatmentCategory[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTreatment, setSelectedTreatment] = useState<Treatment | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
 
-    const fetchTreatments = useCallback(async () => {
+    const fetchData = useCallback(async () => {
         if (!branchSlug) return;
         try {
-            setIsLoading(true);
-            const data = await getTreatmentsByBranch(branchSlug);
-            setTreatments(data);
-        } catch (error) { console.error("Failed to fetch treatments:", error); } 
-        finally { setIsLoading(false); }
+            const [treatmentData, categoryData] = await Promise.all([
+                getTreatmentsByBranch(branchSlug),
+                getTreatmentCategories()
+            ]);
+            setTreatments(treatmentData);
+            setCategories(categoryData);
+        } catch (error) { 
+            console.error("Failed to fetch data:", error); 
+        } finally { 
+            setIsLoading(false); 
+        }
     }, [branchSlug]);
 
-    useEffect(() => { fetchTreatments(); }, [fetchTreatments]);
+    const fetchCategoriesOnly = useCallback(async () => {
+        try {
+            const categoryData = await getTreatmentCategories();
+            setCategories(categoryData);
+        } catch (error) {
+            console.error("Failed to fetch categories:", error);
+        }
+    }, []);
 
-    const handleFormSubmit = async (data: Omit<Treatment, 'id'> | Partial<Treatment>) => {
+    useEffect(() => { 
+        setIsLoading(true);
+        fetchData(); 
+    }, [fetchData]);
+
+    const handleFormSubmit = async (data: any) => {
         if (!branchSlug) return;
+        const payload = { ...data };
+        
         try {
             if (selectedTreatment) {
-                await updateTreatment(selectedTreatment.id, data);
+                await updateTreatment(selectedTreatment.id, payload);
             } else {
-                await createTreatment({ ...data, branchSlug } as Omit<Treatment, 'id'>);
+                await createTreatment({ ...payload, branchSlug, showOnMainPromotion: false, showOnMainSignature: false, showOnMainSearchRanking: false });
             }
-            await fetchTreatments();
+            alert("시술 정보가 성공적으로 저장되었습니다.");
+            await fetchData();
             setSelectedTreatment(null);
             setIsCreating(false);
-        } catch (error) { console.error("Failed to save treatment:", error); }
+        } catch (error) { 
+            console.error("Failed to save treatment:", error); 
+            alert("저장에 실패했습니다.");
+        }
     };
 
     const handleAddNew = () => { setSelectedTreatment(null); setIsCreating(true); };
     const handleSelectTreatment = (treatment: Treatment) => { setIsCreating(false); setSelectedTreatment(treatment); };
     const handleCancel = () => { setSelectedTreatment(null); setIsCreating(false); };
 
-    const filteredTreatments = useMemo(() => treatments.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase())), [treatments, searchTerm]);
+    const handleDeleteTreatment = async (treatmentId: number) => {
+        if (!window.confirm("정말로 이 시술을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) return;
+        
+        try {
+            await deleteTreatment(treatmentId);
+            alert("시술이 성공적으로 삭제되었습니다.");
+            fetchData();
+            handleCancel();
+        } catch (error) {
+            console.error("Failed to delete treatment:", error);
+            alert("삭제에 실패했습니다.");
+        }
+    };
 
-    const TreatmentListItem = ({ treatment }: { treatment: Treatment }) => (
+    const treatmentsWithCategory = useMemo(() => {
+        return treatments.map(t => ({
+            ...t,
+            treatmentCategory: categories.find(c => c.id === t.treatmentCategoryId)
+        }));
+    }, [treatments, categories]);
+
+    const filteredTreatments = useMemo(() => 
+        treatmentsWithCategory.filter(t => 
+            t.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            t.treatmentCategory?.name.toLowerCase().includes(searchTerm.toLowerCase())
+        ), 
+    [treatmentsWithCategory, searchTerm]);
+
+    const groupedTreatments = useMemo(() => {
+        return filteredTreatments.reduce((acc, treatment) => {
+            const categoryName = treatment.treatmentCategory?.name || '미분류';
+            if (!acc[categoryName]) {
+                acc[categoryName] = [];
+            }
+            acc[categoryName].push(treatment);
+            return acc;
+        }, {} as Record<string, (Treatment & { treatmentCategory?: TreatmentCategory | null })[]>);
+    }, [filteredTreatments]);
+
+    const TreatmentListItem = ({ treatment }: { treatment: Treatment & { treatmentCategory?: TreatmentCategory | null } }) => (
         <div className={`p-3 rounded-lg cursor-pointer border flex items-center gap-4 ${selectedTreatment?.id === treatment.id ? 'bg-slate-100 border-theme-primary' : 'hover:bg-slate-50 border-transparent'}`} onClick={() => handleSelectTreatment(treatment)}>
             <img src={treatment.imageUrl} alt={treatment.name} className="w-16 h-16 object-cover rounded-md flex-shrink-0" />
             <div className="flex-grow">
@@ -158,12 +328,20 @@ export function TreatmentManagementPage() {
                         </div>
                         <div className="relative mt-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                            <Input placeholder="시술 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+                            <Input placeholder="시술 또는 그룹 검색..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
                         </div>
                     </CardHeader>
-                    <CardContent className="flex-grow overflow-y-auto space-y-2">
+                    <CardContent className="flex-grow overflow-y-auto space-y-4">
                         {isLoading ? <p className="text-center text-slate-500">로딩 중...</p> :
-                            filteredTreatments.length > 0 ? filteredTreatments.map(t => <TreatmentListItem key={t.id} treatment={t} />) :
+                            Object.keys(groupedTreatments).length > 0 ? 
+                            Object.entries(groupedTreatments).map(([category, treatmentsInCategory]) => (
+                                <div key={category}>
+                                    <h3 className="text-md font-semibold text-slate-600 mb-2 px-2">{category}</h3>
+                                    <div className="space-y-2">
+                                        {treatmentsInCategory.map(t => <TreatmentListItem key={t.id} treatment={t} />)}
+                                    </div>
+                                </div>
+                            )) :
                             <p className="text-center text-slate-500 py-8">표시할 시술이 없습니다.</p>
                         }
                     </CardContent>
@@ -172,7 +350,15 @@ export function TreatmentManagementPage() {
                     <CardHeader><CardTitle className="text-lg">{isCreating ? "새 시술 추가" : selectedTreatment ? "시술 수정" : "시술 정보"}</CardTitle></CardHeader>
                     <CardContent className="flex-grow overflow-y-auto">
                         {isCreating || selectedTreatment ? (
-                            <TreatmentForm treatment={selectedTreatment} onSubmit={handleFormSubmit} onCancel={handleCancel} branchSlug={branchSlug!} />
+                            <TreatmentForm 
+                                treatment={selectedTreatment} 
+                                onSubmit={handleFormSubmit} 
+                                onCancel={handleCancel} 
+                                branchSlug={branchSlug!}
+                                categories={categories}
+                                onCategoriesUpdate={fetchCategoriesOnly}
+                                onDelete={handleDeleteTreatment}
+                            />
                         ) : (
                             <div className="h-full flex items-center justify-center text-center text-slate-500"><p>왼쪽 목록에서 시술을 선택하거나<br />새 시술을 추가하세요.</p></div>
                         )}

@@ -6,7 +6,7 @@ export function TonesTechSupportPage() {
     <div className="p-10 min-h-full">
       <div className="flex items-center gap-4 mb-8">
         <Wrench className="w-8 h-8 text-theme-primary" />
-        <h1 className="text-3xl font-bold text-slate-800">톤즈 기술지원</h1>
+        <h1 className="text-2xl font-bold text-slate-800">톤즈 기술지원</h1>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Request Form */}

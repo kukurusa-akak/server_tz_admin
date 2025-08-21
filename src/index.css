@@ -54,6 +54,16 @@
 }
 
 @layer utilities {
+  @keyframes bell-shake {
+    0%, 17%, 100% { transform: rotate(0); }
+    1.7%, 5.1%, 8.5%, 11.9%, 15.3% { transform: rotate(13deg); }
+    3.4%, 6.8%, 10.2%, 13.6% { transform: rotate(-13deg); }
+  }
+
+  .animate-bell-shake {
+    animation: bell-shake 2.5s cubic-bezier(.36,.07,.19,.97) infinite both;
+  }
+
   @keyframes highlight-fade {
     0% {
       
@@ -92,5 +102,19 @@ html {
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: hsl(var(--primary) / 0.6);
+}
+
+/* Custom Emoji Picker Styles */
+.epr-header,
+.epr-category-nav,
+.epr-preview {
+  display: none !important;
+}
+
+aside.EmojiPickerReact {
+  --epr-emoji-size: 24px !important;
+  --epr-category-label-height: 0px !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
 }
 

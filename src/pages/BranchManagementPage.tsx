@@ -182,7 +182,7 @@ export function BranchManagementPage() {
         <div className="p-6 sm:p-10 min-h-full">
             <header className="mb-8">
                 <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-3xl font-bold text-slate-800">지점 관리</h2>
+                    <h2 className="text-2xl font-bold text-slate-800">지점 관리</h2>
                     {user.role === 'SUPER_ADMIN' && (
                         <button onClick={handleAddClick} className="inline-flex items-center gap-2 px-5 py-2.5 bg-theme-primary text-white font-semibold rounded-lg hover:bg-opacity-90">
                             <PlusCircle size={18} /> 새 지점 추가

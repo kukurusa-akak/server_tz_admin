@@ -11,7 +11,6 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -83,7 +82,7 @@ const LinkForm = ({ link, onSubmit, onCancel, type, isParent }: { link?: Partial
 };
 
 // --- Helper: SortableLinkItem ---
-const SortableLinkItem = ({ link, isDragging, onEdit, onDelete, onSetHomepage, isParent, onOrderChange, isDirty, children }: { link: LinkItem, isDragging?: boolean, onEdit: () => void, onDelete: () => void, onSetHomepage: () => void, isParent: boolean, onOrderChange: (order: number) => void, isDirty: boolean, children?: React.ReactNode }) => {
+const SortableLinkItem = ({ link, isDragging, onEdit, onDelete, onSetHomepage, onAddSubLink, isParent, onOrderChange, isDirty, children }: { link: LinkItem, isDragging?: boolean, onEdit: () => void, onDelete: () => void, onSetHomepage: () => void, onAddSubLink?: () => void, isParent: boolean, onOrderChange: (order: number) => void, isDirty: boolean, children?: React.ReactNode }) => {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: link.id, disabled: isParent });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -110,6 +109,11 @@ const SortableLinkItem = ({ link, isDragging, onEdit, onDelete, onSetHomepage, i
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {isParent && onAddSubLink && (
+            <Button variant="ghost" size="icon" onClick={onAddSubLink} title="하위 링크 추가">
+              <PlusCircle className="h-4 w-4 text-green-600" />
+            </Button>
+          )}
           {!isParent && (
             <Button variant="ghost" size="icon" onClick={onSetHomepage} title="Set as homepage for this group">
               <Star className={`h-4 w-4 ${link.isHomepage ? 'text-yellow-500 fill-yellow-400' : 'text-slate-400'}`} />
@@ -131,6 +135,7 @@ export function NavigationManagementPage() {
   const [, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState<number | string | null>(null);
   const [editingId, setEditingId] = useState<number | string | null>(null);
+  const [addingToParentId, setAddingToParentId] = useState<number | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
 
   const sensors = useSensors(
@@ -159,36 +164,77 @@ export function NavigationManagementPage() {
     if (!over || active.id === over.id) return;
 
     setLinks(currentLinks => {
-        const newLinks: LinkItem[] = JSON.parse(JSON.stringify(currentLinks));
-        const flatLinks = newLinks.flatMap((l: LinkItem) => [l, ...(l.children || [])]);
-        const activeLink = flatLinks.find((l: LinkItem) => l.id === active.id);
-        const overLink = flatLinks.find((l: LinkItem) => l.id === over.id);
+      const newLinks = JSON.parse(JSON.stringify(currentLinks));
+      const flatLinks: LinkItem[] = newLinks.flatMap((l: LinkItem) => [l, ...(l.children || [])]);
+      
+      const activeLink = flatLinks.find(l => l.id === active.id);
+      const overLink = flatLinks.find(l => l.id === over.id);
 
-        if (!activeLink || !overLink || activeLink.type !== overLink.type) return currentLinks;
-
-        if (activeLink.parentId === overLink.parentId) {
-            const parent = activeLink.parentId ? newLinks.find((l: LinkItem) => l.id === activeLink.parentId) : null;
-            const list = parent ? parent.children : newLinks.filter((l: LinkItem) => l.type === activeLink.type && !l.parentId);
-
-            if (list) {
-                const oldIndex = list.findIndex((item: LinkItem) => item.id === active.id);
-                const newIndex = list.findIndex((item: LinkItem) => item.id === over.id);
-                const reorderedList = arrayMove(list, oldIndex, newIndex);
-                
-                reorderedList.forEach((item: LinkItem, index: number) => item.order = index);
-
-                if (parent) {
-                    parent.children = reorderedList;
-                } else {
-                    const otherTypeLinks = newLinks.filter((l: LinkItem) => l.type !== activeLink.type);
-                    const updatedTypeLinks = newLinks.filter((l: LinkItem) => l.type === activeLink.type && l.parentId);
-                    return [...otherTypeLinks, ...reorderedList, ...updatedTypeLinks].sort((a, b) => a.order - b.order);
-                }
-                return newLinks;
-            }
-        }
+      if (!activeLink || !overLink || activeLink.type !== overLink.type) {
         return currentLinks;
+      }
+
+      // Determine the new parent and the index for the dragged item
+      const newParentId = overLink.parentId ?? overLink.id;
+      const oldParentId = activeLink.parentId;
+
+      // If it's a child item being moved
+      if (oldParentId) {
+        const oldParent = newLinks.find((l: LinkItem) => l.id === oldParentId);
+        const newParent = newLinks.find((l: LinkItem) => l.id === newParentId);
+
+        if (!oldParent || !newParent) return currentLinks;
+
+        // Find the index of the item being dragged
+        const oldIndex = oldParent.children?.findIndex((l: LinkItem) => l.id === active.id) ?? -1;
+        if (oldIndex === -1) return currentLinks;
+
+        // Remove the item from its old parent
+        const [movedItem] = oldParent.children!.splice(oldIndex, 1);
+        movedItem.parentId = newParentId;
+
+        // Determine the new index in the new parent's children array
+        let newIndex = newParent.children?.findIndex((l: LinkItem) => l.id === over.id) ?? -1;
+        
+        // If dropping on the parent container itself, add to the end.
+        if (over.id === newParentId) {
+          newIndex = newParent.children?.length ?? 0;
+        }
+        
+        if (newIndex === -1) { // Fallback if overLink is not in children
+            newIndex = newParent.children?.length ?? 0;
+        }
+
+        // Add the item to its new parent
+        if (!newParent.children) newParent.children = [];
+        newParent.children!.splice(newIndex, 0, movedItem);
+
+        // Re-order both old and new parent's children
+        oldParent.children!.forEach((child: LinkItem, index: number) => child.order = index);
+        newParent.children!.forEach((child: LinkItem, index: number) => child.order = index);
+
+        return newLinks;
+      }
+      
+      // This part handles reordering of top-level items
+      const activeIndex = newLinks.findIndex((l: LinkItem) => l.id === active.id);
+      const overIndex = newLinks.findIndex((l: LinkItem) => l.id === over.id);
+
+      if (activeIndex !== -1 && overIndex !== -1) {
+        const [movedItem] = newLinks.splice(activeIndex, 1);
+        newLinks.splice(overIndex, 0, movedItem);
+        
+        // Update order for all top-level items of the same type
+        newLinks.filter((l: LinkItem) => l.type === activeLink.type && !l.parentId)
+          .forEach((item: LinkItem, index: number) => {
+            const originalItem = newLinks.find((li: LinkItem) => li.id === item.id);
+            if(originalItem) originalItem.order = index;
+          });
+      }
+
+      return newLinks;
     });
+
     setHasChanges(true);
   };
   
@@ -226,6 +272,7 @@ export function NavigationManagementPage() {
         await createNavigationLink(data);
       }
       setEditingId(null);
+      setAddingToParentId(null);
       await fetchLinks();
     } catch (error) { console.error("Failed to save link:", error); }
   };
@@ -280,26 +327,44 @@ export function NavigationManagementPage() {
 
   const renderLinks = (linksToRender: LinkItem[], type: 'PORTAL' | 'ADMIN') => {
     return (
-      <>
+      <SortableContext items={linksToRender.map(l => l.id)} strategy={verticalListSortingStrategy}>
         {linksToRender.map(link => (
           <div key={link.id}>
             {editingId === link.id ?
               <LinkForm link={link} onSubmit={handleFormSubmit} onCancel={() => setEditingId(null)} type={type} isParent={!link.parentId} /> :
-              <SortableLinkItem link={link} onEdit={() => setEditingId(link.id)} onDelete={() => handleDelete(link.id)} onSetHomepage={() => {}} isParent={!link.parentId} onOrderChange={(order) => handleOrderChange(link.id, order)} isDirty={dirtyIds.has(link.id)}>
-                {link.children && link.children.length > 0 && (
+              <SortableLinkItem 
+                link={link} 
+                onEdit={() => { setEditingId(link.id); setAddingToParentId(null); }} 
+                onDelete={() => handleDelete(link.id)} 
+                onSetHomepage={() => {}} 
+                onAddSubLink={() => { setAddingToParentId(link.id); setEditingId(null); }}
+                isParent={!link.parentId} 
+                onOrderChange={(order) => handleOrderChange(link.id, order)} 
+                isDirty={dirtyIds.has(link.id)}
+              >
+                {link.children && (
                   <SortableContext items={link.children.map(c => c.id)} strategy={verticalListSortingStrategy}>
                     {link.children.map(child => (
                       editingId === child.id ?
                         <LinkForm key={child.id} link={child} onSubmit={handleFormSubmit} onCancel={() => setEditingId(null)} type={type} isParent={false} /> :
-                        <SortableLinkItem key={child.id} link={child} onEdit={() => setEditingId(child.id)} onDelete={() => handleDelete(child.id)} onSetHomepage={() => handleSetHomepage(child.id, type)} isParent={false} onOrderChange={() => {}} isDirty={dirtyIds.has(child.id)} />
+                        <SortableLinkItem key={child.id} link={child} onEdit={() => { setEditingId(child.id); setAddingToParentId(null); }} onDelete={() => handleDelete(child.id)} onSetHomepage={() => handleSetHomepage(child.id, type)} isParent={false} onOrderChange={() => {}} isDirty={dirtyIds.has(child.id)} />
                     ))}
                   </SortableContext>
+                )}
+                {addingToParentId === link.id && (
+                  <LinkForm 
+                    onSubmit={handleFormSubmit} 
+                    onCancel={() => setAddingToParentId(null)} 
+                    type={type} 
+                    isParent={false} 
+                    link={{ parentId: link.id, type: type, order: (link.children?.length || 0) }} 
+                  />
                 )}
               </SortableLinkItem>
             }
           </div>
         ))}
-      </>
+      </SortableContext>
     );
   };
 
@@ -307,7 +372,7 @@ export function NavigationManagementPage() {
     <div className="p-6 sm:p-10 min-h-full">
       <header className="mb-8 flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-slate-800">네비게이션 메뉴 관리</h2>
+          <h2 className="text-2xl font-bold text-slate-800">네비게이션 메뉴 관리</h2>
           <p className="text-slate-500">드래그 앤 드롭으로 순서와 그룹을 변경하고, 링크를 관리하세요.</p>
         </div>
         {hasChanges && (
@@ -329,7 +394,7 @@ export function NavigationManagementPage() {
             <Card className="mt-4">
               <CardHeader className="flex flex-row justify-between items-center">
                 <CardTitle>포털 메뉴</CardTitle>
-                <Button size="sm" variant="outline" onClick={() => setEditingId('new-portal')}><PlusCircle className="h-4 w-4 mr-2" /> 최상위 링크 추가</Button>
+                <Button size="sm" variant="outline" onClick={() => { setEditingId('new-portal'); setAddingToParentId(null); }}><PlusCircle className="h-4 w-4 mr-2" /> 최상위 링크 추가</Button>
               </CardHeader>
               <CardContent className="space-y-2">
                 {renderLinks(links.filter(l => l.type === 'PORTAL' && !l.parentId), 'PORTAL')}
@@ -342,7 +407,7 @@ export function NavigationManagementPage() {
              <Card className="mt-4">
               <CardHeader className="flex flex-row justify-between items-center">
                 <CardTitle>관리자 메뉴</CardTitle>
-                <Button size="sm" variant="outline" onClick={() => setEditingId('new-admin')}><PlusCircle className="h-4 w-4 mr-2" /> 최상위 그룹 추가</Button>
+                <Button size="sm" variant="outline" onClick={() => { setEditingId('new-admin'); setAddingToParentId(null); }}><PlusCircle className="h-4 w-4 mr-2" /> 최상위 그룹 추가</Button>
               </CardHeader>
               <CardContent className="space-y-2">
                 {renderLinks(links.filter(l => l.type === 'ADMIN' && !l.parentId), 'ADMIN')}

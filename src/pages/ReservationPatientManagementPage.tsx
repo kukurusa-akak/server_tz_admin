@@ -90,7 +90,7 @@ export function ReservationPatientManagementPage() {
         ) : (
           <div>
             <div className="pb-6 border-b mb-6">
-              <h1 className="text-3xl font-bold text-slate-800">{selectedPatient.name}</h1>
+              <h1 className="text-2xl font-bold text-slate-800">{selectedPatient.name}</h1>
               <p className="text-slate-600 mt-1">{selectedPatient.phone}</p>
             </div>
             

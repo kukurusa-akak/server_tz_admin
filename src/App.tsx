@@ -1,11 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 import { ConfigProvider } from "./context/ConfigContext";
 import { BranchProvider } from "./context/BranchContext";
-import { useState, useEffect } from "react";
-import { getNavigationLinks, NavigationLink } from "./lib/api";
 
 // Pages
 import { LoginPage } from "./pages/LoginPage";
@@ -36,16 +35,7 @@ import { TonesNoticePage } from "./pages/TonesNoticePage";
 import { TonesTechSupportPage } from "./pages/TonesTechSupportPage";
 import { TonesWorkRequestPage } from "./pages/TonesWorkRequestPage";
 import { TonesResourceCenterPage } from "./pages/TonesResourceCenterPage";
-
-const DynamicRedirect = ({ navLinks }: { navLinks: NavigationLink[] }) => {
-  const homepageLink = navLinks
-    .flatMap(parent => parent.children || [])
-    .find(child => child.isHomepage);
-  
-  const redirectTo = homepageLink?.path || 'dashboard';
-
-  return <Navigate to={redirectTo} replace />;
-};
+import { SnsManagementPage } from "./pages/SnsManagementPage";
 
 const RedirectToLastBranch = () => {
   const lastVisited = localStorage.getItem('currentBranchSlug') || 'bupyeong';
@@ -53,39 +43,32 @@ const RedirectToLastBranch = () => {
 };
 
 function App() {
-  const [navLinks, setNavLinks] = useState<NavigationLink[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const token = localStorage.getItem('admin_token');
-    if (token) {
-      getNavigationLinks()
-        .then(data => {
-          setNavLinks(data.filter(link => link.type === 'ADMIN'));
-        })
-        .catch(err => console.error("Failed to fetch nav links for redirect:", err))
-        .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
-    }
-  }, []);
-
-  if (isLoading) {
-    return <div>Loading navigation...</div>;
-  }
 
   return (
     <ConfigProvider>
       <AuthProvider>
         <BranchProvider>
             <BrowserRouter>
+              <Toaster 
+                position="top-center"
+                offset="80px"
+                toastOptions={{
+                  classNames: {
+                    toast: 'bg-theme-primary-light border-theme-primary/20 shadow-lg text-lg p-6 w-full max-w-md',
+                    title: 'text-theme-primary font-semibold',
+                    description: 'text-charcoal-gray',
+                  },
+                }}
+              />
               <BranchContextUpdater />
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/" element={<ProtectedRoute><RedirectToLastBranch /></ProtectedRoute>} />
-                <Route path="/:branchSlug" element={<ProtectedRoute><Layout navLinks={navLinks} /></ProtectedRoute>}>
-                  <Route index element={<DynamicRedirect navLinks={navLinks} />} />
+                
+                {/* The Layout route now wraps all branch-specific pages */}
+                <Route path="/:branchSlug" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                  <Route index element={<Navigate to="dashboard" replace />} />
                   <Route path="my-info" element={<MyInfoPage />} />
                   <Route path="branches" element={<BranchManagementPage />} />
                   <Route path="doctors" element={<DoctorManagementPage />} />
@@ -110,8 +93,9 @@ function App() {
                   <Route path="tones/tech-support" element={<TonesTechSupportPage />} />
                   <Route path="tones/work-request" element={<TonesWorkRequestPage />} />
                   <Route path="tones/resource-center" element={<TonesResourceCenterPage />} />
+                  <Route path="sns" element={<SnsManagementPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
                 </Route>
-                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </BrowserRouter>
         </BranchProvider>

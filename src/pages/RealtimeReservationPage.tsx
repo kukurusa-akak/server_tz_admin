@@ -269,7 +269,7 @@ export function RealtimeReservationPage() {
         />
       )}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-slate-800">실시간 예약 현황</h1>
+        <h1 className="text-2xl font-bold text-slate-800">실시간 예약 현황</h1>
         {currentTime ? (
           <div className="flex items-center text-slate-600 bg-white px-4 py-2 rounded-lg border">
             <Clock className="w-6 h-6 mr-3 text-theme-primary" />
